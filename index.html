@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="Janno" />
+  <meta name="theme-color" content="#185FA5" />
+  <title>Schulvorfälle – Janno</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --blue: #185FA5;
+      --blue-light: #E6F1FB;
+      --blue-mid: #378ADD;
+      --blue-dark: #0C447C;
+      --red: #E24B4A;
+      --red-bg: #FCEBEB;
+      --red-text: #A32D2D;
+      --amber-bg: #FAEEDA;
+      --amber-text: #854F0B;
+      --green-bg: #EAF3DE;
+      --green-text: #3B6D11;
+      --purple-bg: #EEEDFE;
+      --purple-text: #534AB7;
+      --bg: #ffffff;
+      --bg2: #f5f5f3;
+      --bg3: #eeede9;
+      --text: #1a1a18;
+      --text2: #6b6b67;
+      --text3: #a0a09c;
+      --border: rgba(0,0,0,0.12);
+      --border2: rgba(0,0,0,0.22);
+      --radius: 10px;
+      --radius-lg: 14px;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #1c1c1e;
+        --bg2: #2c2c2e;
+        --bg3: #3a3a3c;
+        --text: #f2f2f0;
+        --text2: #aeaead;
+        --text3: #6c6c6a;
+        --border: rgba(255,255,255,0.12);
+        --border2: rgba(255,255,255,0.22);
+        --blue-light: #0c2d4a;
+      }
+    }
+
+    html, body { height: 100%; background: var(--bg2); font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif; color: var(--text); -webkit-font-smoothing: antialiased; }
+
+    .safe-top { padding-top: env(safe-area-inset-top, 0); }
+
+    .header {
+      background: var(--blue);
+      color: white;
+      padding: calc(env(safe-area-inset-top, 0px) + 16px) 20px 16px;
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+    }
+    .header h1 { font-size: 20px; font-weight: 600; }
+    .header span { font-size: 14px; opacity: 0.75; }
+
+    .tabs {
+      display: flex;
+      background: var(--blue-dark);
+      padding: 0 4px;
+    }
+    .tab {
+      flex: 1;
+      padding: 10px 4px;
+      text-align: center;
+      font-size: 13px;
+      font-weight: 500;
+      color: rgba(255,255,255,0.6);
+      border: none;
+      background: none;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all 0.15s;
+      font-family: inherit;
+    }
+    .tab.active { color: white; border-bottom-color: white; }
+
+    .content { padding: 16px; padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 24px); max-width: 640px; margin: 0 auto; }
+
+    .card { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 16px; margin-bottom: 12px; }
+
+    label { display: block; font-size: 11px; font-weight: 600; color: var(--text2); margin-bottom: 5px; letter-spacing: 0.06em; text-transform: uppercase; }
+
+    input[type=text], select, textarea {
+      width: 100%;
+      font-family: inherit;
+      font-size: 16px;
+      padding: 10px 12px;
+      border: 0.5px solid var(--border2);
+      border-radius: var(--radius);
+      color: var(--text);
+      background: var(--bg2);
+      -webkit-appearance: none;
+      appearance: none;
+      outline: none;
+    }
+    input[type=text]:focus, select:focus, textarea:focus { border-color: var(--blue-mid); }
+    textarea { min-height: 110px; resize: vertical; line-height: 1.6; }
+
+    .field { margin-bottom: 14px; }
+
+    .mic-area { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 20px 0 16px; }
+    .mic-btn {
+      width: 76px; height: 76px; border-radius: 50%;
+      border: 2px solid var(--border2);
+      background: var(--bg2);
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.2s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .mic-btn:active { transform: scale(0.94); }
+    .mic-btn.recording { background: var(--red-bg); border-color: var(--red); animation: pulse 1.2s infinite; }
+    @keyframes pulse { 0%,100%{transform:scale(1)}50%{transform:scale(1.07)} }
+    .mic-label { font-size: 13px; color: var(--text2); text-align: center; }
+    .mic-label.recording { color: var(--red-text); font-weight: 600; }
+
+    .transcript-box {
+      min-height: 72px;
+      background: var(--bg2);
+      border: 0.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 11px 13px;
+      font-size: 15px;
+      color: var(--text);
+      line-height: 1.65;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .placeholder { color: var(--text3); font-style: italic; }
+
+    .btn-row { display: flex; gap: 8px; margin-top: 14px; }
+    .btn {
+      padding: 11px 18px;
+      border-radius: var(--radius);
+      font-size: 15px;
+      font-weight: 500;
+      cursor: pointer;
+      border: 0.5px solid var(--border2);
+      background: var(--bg);
+      color: var(--text);
+      transition: all 0.15s;
+      font-family: inherit;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .btn:active { transform: scale(0.97); }
+    .btn-primary { background: var(--blue); border-color: var(--blue); color: white; flex: 1; }
+    .btn-primary:active { background: var(--blue-dark); }
+
+    .notice {
+      font-size: 13px;
+      color: var(--text2);
+      padding: 9px 12px;
+      background: var(--blue-light);
+      border-radius: var(--radius);
+      border-left: 3px solid var(--blue-mid);
+      margin-bottom: 14px;
+      line-height: 1.5;
+    }
+
+    .incident-item { background: var(--bg); border: 0.5px solid var(--border); border-radius: var(--radius-lg); padding: 13px 15px; margin-bottom: 10px; }
+    .incident-meta { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; flex-wrap: wrap; }
+    .badge { font-size: 11px; padding: 3px 9px; border-radius: 20px; font-weight: 600; }
+    .bc-1 { background: var(--red-bg); color: var(--red-text); }
+    .bc-2 { background: var(--amber-bg); color: var(--amber-text); }
+    .bc-3 { background: var(--green-bg); color: var(--green-text); }
+    .bc-4 { background: var(--blue-light); color: var(--blue); }
+    .bc-5 { background: var(--purple-bg); color: var(--purple-text); }
+    .badge-teacher { background: var(--green-bg); color: var(--green-text); }
+    .ts { font-size: 12px; color: var(--text3); margin-left: auto; }
+    .incident-text { font-size: 14px; line-height: 1.65; color: var(--text); white-space: pre-wrap; word-break: break-word; }
+    .del-btn { background: none; border: none; cursor: pointer; color: var(--text3); padding: 2px 6px; font-size: 18px; border-radius: 4px; margin-left: 4px; -webkit-tap-highlight-color: transparent; }
+
+    .empty { text-align: center; padding: 3rem 1rem; color: var(--text2); font-size: 15px; }
+
+    .stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+    .stat { background: var(--bg2); border-radius: var(--radius); padding: 12px; }
+    .stat-n { font-size: 24px; font-weight: 600; color: var(--text); }
+    .stat-l { font-size: 11px; color: var(--text2); margin-top: 2px; }
+
+    .search-row { display: flex; gap: 8px; margin-bottom: 12px; }
+    .section-header { font-size: 13px; font-weight: 600; color: var(--text2); margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; letter-spacing: 0.02em; text-transform: uppercase; }
+
+    .chart-label { font-size: 13px; color: var(--text2); min-width: 130px; }
+    .chart-bar-wrap { flex: 1; height: 8px; background: var(--bg3); border-radius: 4px; overflow: hidden; }
+    .chart-bar { height: 100%; border-radius: 4px; transition: width 0.5s ease; }
+    .chart-count { font-size: 13px; font-weight: 600; min-width: 18px; text-align: right; }
+    .chart-row { display: flex; align-items: center; gap: 10px; margin-bottom: 9px; }
+
+    .export-btn { font-size: 12px; padding: 6px 13px; }
+
+    .toast {
+      position: fixed; bottom: calc(env(safe-area-inset-bottom, 0px) + 20px);
+      left: 50%; transform: translateX(-50%);
+      background: #1a1a18; color: white;
+      padding: 10px 22px; border-radius: 22px;
+      font-size: 14px; font-weight: 500;
+      opacity: 0; transition: opacity 0.3s;
+      pointer-events: none; z-index: 99;
+      white-space: nowrap;
+    }
+    .toast.show { opacity: 1; }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Schulvorfälle</h1>
+  <span>Janno</span>
+</div>
+<div class="tabs">
+  <button class="tab active" onclick="showTab('erfassen')">Erfassen</button>
+  <button class="tab" onclick="showTab('liste')">Vorfälle</button>
+  <button class="tab" onclick="showTab('auswertung')">Auswertung</button>
+</div>
+
+<div class="content">
+
+  <!-- TAB: ERFASSEN -->
+  <div id="tab-erfassen">
+    <div class="card">
+      <div class="notice" id="speech-notice">Tippen Sie auf das Mikrofon und schildern Sie den Vorfall auf Deutsch.</div>
+
+      <div class="field">
+        <label>Lehrperson (optional)</label>
+        <input type="text" id="teacher" placeholder="z.B. Herr Müller, Fr. Schmidt …" autocomplete="off" autocorrect="off" />
+      </div>
+
+      <div class="field">
+        <label>Datum &amp; Uhrzeit des Vorfalls</label>
+        <input type="datetime-local" id="incidentTime" />
+      </div>
+
+      <div class="field">
+        <label>Vorfall schildern</label>
+        <div class="mic-area">
+          <button class="mic-btn" id="micBtn" onclick="toggleRecording()">
+            <svg width="30" height="30" viewBox="0 0 30 30" fill="none">
+              <rect x="10" y="2" width="10" height="15" rx="5" fill="#378ADD"/>
+              <path d="M4 15c0 6.075 4.925 11 11 11s11-4.925 11-11" stroke="#378ADD" stroke-width="2.2" stroke-linecap="round"/>
+              <line x1="15" y1="26" x2="15" y2="29" stroke="#378ADD" stroke-width="2.2" stroke-linecap="round"/>
+            </svg>
+          </button>
+          <span class="mic-label" id="micLabel">Tippen zum Aufnehmen</span>
+        </div>
+        <div class="transcript-box" id="transcriptBox">
+          <span class="placeholder" id="placeholder">Hier erscheint die erkannte Sprache …</span>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Text korrigieren / ergänzen</label>
+        <textarea id="manualText" placeholder="Text direkt eingeben oder nach Spracheingabe anpassen …"></textarea>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="saveIncident()">Vorfall speichern</button>
+        <button class="btn" onclick="clearForm()">Leeren</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB: LISTE -->
+  <div id="tab-liste" style="display:none">
+    <div class="search-row">
+      <input type="text" id="searchInput" placeholder="Suchen …" oninput="renderList()" />
+    </div>
+    <div class="section-header">
+      <span id="listCount">0 Vorfälle</span>
+      <button class="btn export-btn" onclick="exportCSV()">Export CSV</button>
+    </div>
+    <div id="incidentList"></div>
+  </div>
+
+  <!-- TAB: AUSWERTUNG -->
+  <div id="tab-auswertung" style="display:none">
+    <div class="stats" id="statsGrid"></div>
+    <div class="card">
+      <div class="section-header"><span>Lehrkräfte</span></div>
+      <div id="teacherChart"></div>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+
+  let incidents = [];
+  let recognition = null;
+  let isRecording = false;
+  let transcript = '';
+
+  function load() {
+    try { incidents = JSON.parse(localStorage.getItem('janno_incidents') || '[]'); } catch(e){ incidents=[]; }
+    renderList(); renderStats();
+  }
+
+  function saveStorage() {
+    localStorage.setItem('janno_incidents', JSON.stringify(incidents));
+  }
+
+  function showTab(tab) {
+    ['erfassen','liste','auswertung'].forEach(t => {
+      document.getElementById('tab-'+t).style.display = t===tab ? 'block' : 'none';
+    });
+    document.querySelectorAll('.tab').forEach((el,i) => {
+      el.classList.toggle('active', ['erfassen','liste','auswertung'][i]===tab);
+    });
+    if(tab==='liste') renderList();
+    if(tab==='auswertung') renderStats();
+  }
+
+  function initSpeech() {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) {
+      document.getElementById('speech-notice').textContent = '⚠ Spracheingabe nicht verfügbar in diesem Browser. Bitte Text direkt eingeben.';
+      document.getElementById('micBtn').style.opacity = '0.4';
+      document.getElementById('micBtn').onclick = null;
+      return;
+    }
+    recognition = new SR();
+    recognition.lang = 'de-DE';
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.onresult = (e) => {
+      let interim = '', final = '';
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        if (e.results[i].isFinal) final += e.results[i][0].transcript + ' ';
+        else interim += e.results[i][0].transcript;
+      }
+      transcript += final;
+      const box = document.getElementById('transcriptBox');
+      document.getElementById('placeholder').style.display = 'none';
+      box.textContent = '';
+      box.insertAdjacentHTML('beforeend', transcript + '<em style="color:var(--text3)">' + interim + '</em>');
+      document.getElementById('manualText').value = transcript.trim();
+    };
+    recognition.onerror = () => stopRecording();
+    recognition.onend = () => { if(isRecording) { try { recognition.start(); } catch(e){} } };
+  }
+
+  function toggleRecording() {
+    if (!recognition) return;
+    isRecording ? stopRecording() : startRecording();
+  }
+
+  function startRecording() {
+    isRecording = true;
+    try { recognition.start(); } catch(e){}
+    document.getElementById('micBtn').classList.add('recording');
+    document.getElementById('micLabel').textContent = 'Aufnahme läuft – Tippen zum Stoppen';
+    document.getElementById('micLabel').classList.add('recording');
+  }
+
+  function stopRecording() {
+    isRecording = false;
+    try { recognition.stop(); } catch(e){}
+    document.getElementById('micBtn').classList.remove('recording');
+    document.getElementById('micLabel').textContent = 'Tippen zum Aufnehmen';
+    document.getElementById('micLabel').classList.remove('recording');
+  }
+
+  function clearForm() {
+    transcript = '';
+    document.getElementById('manualText').value = '';
+    document.getElementById('teacher').value = '';
+    document.getElementById('transcriptBox').innerHTML = '<span class="placeholder" id="placeholder">Hier erscheint die erkannte Sprache …</span>';
+    setDefaultTime();
+    if(isRecording) stopRecording();
+  }
+
+  function setDefaultTime() {
+    const now = new Date();
+    const local = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0,16);
+    document.getElementById('incidentTime').value = local;
+  }
+
+  function saveIncident() {
+    const text = document.getElementById('manualText').value.trim() || transcript.trim();
+    if (!text) { showToast('Bitte zuerst einen Vorfall schildern.'); return; }
+    const tsVal = document.getElementById('incidentTime').value;
+    const ts = tsVal ? new Date(tsVal).toISOString() : new Date().toISOString();
+    const inc = {
+      id: Date.now(),
+      ts,
+      text,
+      teacher: document.getElementById('teacher').value.trim()
+    };
+    incidents.unshift(inc);
+    saveStorage();
+    clearForm();
+    showToast('Vorfall gespeichert ✓');
+    showTab('liste');
+  }
+
+  function deleteIncident(id) {
+    if (!confirm('Eintrag löschen?')) return;
+    incidents = incidents.filter(i => i.id !== id);
+    saveStorage();
+    renderList();
+    renderStats();
+  }
+
+  function fmtDate(iso) {
+    const d = new Date(iso);
+    return d.toLocaleDateString('de-DE',{day:'2-digit',month:'2-digit',year:'numeric'})
+      + ' · ' + d.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
+  }
+
+  function renderList() {
+    const q = (document.getElementById('searchInput')?.value || '').toLowerCase();
+    const filtered = incidents.filter(i =>
+      i.text.toLowerCase().includes(q) ||
+      (i.teacher||'').toLowerCase().includes(q) ||
+      CATS[i.cat].toLowerCase().includes(q)
+    );
+    document.getElementById('listCount').textContent = filtered.length + ' Vorfall' + (filtered.length!==1?'e':'');
+    const el = document.getElementById('incidentList');
+    if (!filtered.length) {
+      el.innerHTML = '<div class="empty">Noch keine Vorfälle erfasst.</div>';
+      return;
+    }
+    el.innerHTML = filtered.map(i => `
+      <div class="incident-item">
+        <div class="incident-meta">
+          ${i.teacher ? `<span class="badge badge-teacher">${i.teacher}</span>` : ''}
+          <span class="ts">${fmtDate(i.ts)}</span>
+          <button class="del-btn" onclick="deleteIncident(${i.id})" title="Löschen">✕</button>
+        </div>
+        <div class="incident-text">${i.text.replace(/</g,'&lt;')}</div>
+      </div>
+    `).join('');
+  }
+
+  function renderStats() {
+    const n = incidents.length;
+    const m = new Date().getMonth();
+    const thisMonth = incidents.filter(i => new Date(i.ts).getMonth() === m).length;
+    const teachers = new Set(incidents.filter(i=>i.teacher).map(i=>i.teacher)).size;
+    document.getElementById('statsGrid').innerHTML = `
+      <div class="stat"><div class="stat-n">${n}</div><div class="stat-l">Gesamt</div></div>
+      <div class="stat"><div class="stat-n">${thisMonth}</div><div class="stat-l">Diesen Monat</div></div>
+      <div class="stat"><div class="stat-n">${teachers}</div><div class="stat-l">Lehrkräfte</div></div>
+    `;
+    const tCount = {};
+    incidents.filter(i=>i.teacher).forEach(i => tCount[i.teacher]=(tCount[i.teacher]||0)+1);
+    const sorted = Object.entries(tCount).sort((a,b)=>b[1]-a[1]);
+    const maxT = Math.max(1, ...sorted.map(e=>e[1]));
+    document.getElementById('teacherChart').innerHTML = sorted.length
+      ? sorted.map(([t,c]) => `<div class="chart-row">
+          <span class="chart-label">${t}</span>
+          <div class="chart-bar-wrap"><div class="chart-bar" style="width:${Math.round(c/maxT*100)}%;background:#639922"></div></div>
+          <span class="chart-count">${c}</span>
+        </div>`).join('')
+      : '<div style="font-size:14px;color:var(--text2)">Noch keine Lehrkräfte erfasst.</div>';
+  }
+
+  function exportCSV() {
+    if (!incidents.length) { showToast('Keine Daten zum Exportieren.'); return; }
+    const rows = [['Datum','Uhrzeit','Lehrkraft','Schilderung']];
+    incidents.forEach(i => {
+      const d = new Date(i.ts);
+      rows.push([
+        d.toLocaleDateString('de-DE'),
+        d.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}),
+        i.teacher || '',
+        '"' + i.text.replace(/"/g,'""') + '"'
+      ]);
+    });
+    const csv = '\uFEFF' + rows.map(r => r.join(';')).join('\n');
+    const blob = new Blob([csv], {type:'text/csv;charset=utf-8'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'schulvorfaelle_janno.csv'; a.click();
+    URL.revokeObjectURL(url);
+    showToast('CSV exportiert ✓');
+  }
+
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2500);
+  }
+
+  // Register Service Worker
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./sw.js').catch(() => {});
+  }
+
+  initSpeech();
+  setDefaultTime();
+  load();
+</script>
+</body>
+</html>

@@ -1,0 +1,25 @@
+{
+  "name": "Schulvorfälle – Janno",
+  "short_name": "Janno",
+  "description": "Vorfälle an Jannos Schule erfassen und auswerten",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#185FA5",
+  "orientation": "portrait",
+  "lang": "de",
+  "icons": [
+    {
+      "src": "icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
