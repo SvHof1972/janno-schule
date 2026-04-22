@@ -326,8 +326,9 @@
     if(tab==='auswertung') renderStats();
   }
 
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+
   function initSpeech() {
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) {
       document.getElementById('speech-notice').textContent = '⚠ Spracheingabe nicht verfügbar in diesem Browser. Bitte Text direkt eingeben.';
       document.getElementById('micBtn').style.opacity = '0.4';
@@ -335,57 +336,61 @@
       return;
     }
     document.getElementById('speech-notice').textContent = 'Tippen Sie auf das Mikrofon und schildern Sie den Vorfall auf Deutsch.';
-
-    function createRecognition() {
-      const r = new SR();
-      r.lang = 'de-DE';
-      r.continuous = false;      // iOS Safari unterstützt continuous nicht zuverlässig
-      r.interimResults = false;  // Stabilere Ergebnisse auf iOS
-      r.onresult = (e) => {
-        for (let i = e.resultIndex; i < e.results.length; i++) {
-          if (e.results[i].isFinal) {
-            transcript += e.results[i][0].transcript + ' ';
-          }
-        }
-        updateDisplay();
-      };
-      r.onerror = (e) => {
-        if (e.error === 'not-allowed') {
-          stopRecording();
-          showToast('Mikrofon-Zugriff verweigert. Bitte in den Einstellungen erlauben.');
-        }
-      };
-      r.onend = () => {
-        // iOS stoppt nach jeder Pause – bei aktiver Aufnahme sofort neu starten
-        if (isRecording) {
-          try { recognition.start(); } catch(e) {}
-        }
-      };
-      return r;
-    }
-
-    recognition = createRecognition();
   }
 
-  function updateDisplay() {
+  // iOS Safari: neue Instanz bei jedem Start nötig
+  function startNewSession() {
+    const r = new SR();
+    r.lang = 'de-DE';
+    r.continuous = false;
+    r.interimResults = true;
+    r.onresult = (e) => {
+      let interim = '';
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        if (e.results[i].isFinal) {
+          transcript += e.results[i][0].transcript + ' ';
+        } else {
+          interim += e.results[i][0].transcript;
+        }
+      }
+      updateDisplay(interim);
+    };
+    r.onerror = (e) => {
+      if (e.error === 'not-allowed') {
+        stopRecording();
+        showToast('Mikrofon-Zugriff verweigert. Bitte in Einstellungen → Safari → Mikrofon erlauben.');
+      }
+      // andere Fehler (network, aborted) ignorieren, onend startet neu
+    };
+    r.onend = () => {
+      if (isRecording) {
+        // kurze Pause, dann neue Instanz starten
+        setTimeout(() => { if (isRecording) startNewSession(); }, 150);
+      }
+    };
+    recognition = r;
+    try { r.start(); } catch(e) {}
+  }
+
+  function updateDisplay(interim) {
+    interim = interim || '';
     const box = document.getElementById('transcriptBox');
     const ph = document.getElementById('placeholder');
-    const t = transcript.trim();
-    if (t) {
-      if (ph) ph.style.display = 'none';
-      box.textContent = t;
-    }
-    document.getElementById('manualText').value = t;
+    if (ph) ph.style.display = 'none';
+    box.textContent = transcript.trim() + (interim ? ' ' + interim : '');
+    document.getElementById('manualText').value = transcript.trim();
   }
 
   function toggleRecording() {
-    if (!recognition) return;
+    if (!SR) { showToast('Sprache nicht verfügbar – Text bitte direkt eingeben.'); return; }
     isRecording ? stopRecording() : startRecording();
   }
 
   function startRecording() {
+    if (!SR) return;
     isRecording = true;
-    try { recognition.start(); } catch(e){}
+    transcript = transcript; // behalten was schon da ist
+    startNewSession();
     document.getElementById('micBtn').classList.add('recording');
     document.getElementById('micLabel').textContent = 'Aufnahme läuft – Tippen zum Stoppen';
     document.getElementById('micLabel').classList.add('recording');
@@ -393,7 +398,8 @@
 
   function stopRecording() {
     isRecording = false;
-    try { recognition.stop(); } catch(e){}
+    if (recognition) { try { recognition.stop(); } catch(e){} recognition = null; }
+    updateDisplay();
     document.getElementById('micBtn').classList.remove('recording');
     document.getElementById('micLabel').textContent = 'Tippen zum Aufnehmen';
     document.getElementById('micLabel').classList.remove('recording');
