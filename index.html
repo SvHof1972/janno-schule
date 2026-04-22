@@ -327,58 +327,60 @@
   }
 
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  let sessionId = 0; // verhindert, dass alte Sessions Daten liefern
 
   function initSpeech() {
     if (!SR) {
-      document.getElementById('speech-notice').textContent = '⚠ Spracheingabe nicht verfügbar in diesem Browser. Bitte Text direkt eingeben.';
+      document.getElementById('speech-notice').textContent = '⚠ Spracheingabe nicht verfügbar. Bitte Text direkt eingeben.';
       document.getElementById('micBtn').style.opacity = '0.4';
       document.getElementById('micBtn').onclick = null;
-      return;
     }
-    document.getElementById('speech-notice').textContent = 'Tippen Sie auf das Mikrofon und schildern Sie den Vorfall auf Deutsch.';
   }
 
-  // iOS Safari: neue Instanz bei jedem Start nötig
+  // iOS Safari: bei jedem Start eine neue Instanz + neue sessionId
   function startNewSession() {
+    const myId = ++sessionId;
     const r = new SR();
     r.lang = 'de-DE';
     r.continuous = false;
-    r.interimResults = true;
+    r.interimResults = false; // iOS: interimResults verursacht Doppeleinträge
     r.onresult = (e) => {
-      let interim = '';
+      if (myId !== sessionId) return; // veraltete Session ignorieren
       for (let i = e.resultIndex; i < e.results.length; i++) {
         if (e.results[i].isFinal) {
-          transcript += e.results[i][0].transcript + ' ';
-        } else {
-          interim += e.results[i][0].transcript;
+          transcript += (transcript ? ' ' : '') + e.results[i][0].transcript;
         }
       }
-      updateDisplay(interim);
+      updateDisplay();
     };
     r.onerror = (e) => {
+      if (myId !== sessionId) return;
       if (e.error === 'not-allowed') {
         stopRecording();
-        showToast('Mikrofon-Zugriff verweigert. Bitte in Einstellungen → Safari → Mikrofon erlauben.');
+        showToast('Mikrofon-Zugriff verweigert. Bitte in Safari-Einstellungen erlauben.');
       }
-      // andere Fehler (network, aborted) ignorieren, onend startet neu
+      // 'no-speech', 'aborted' etc. → onend kümmert sich ums Neustarten
     };
     r.onend = () => {
+      if (myId !== sessionId) return;
       if (isRecording) {
-        // kurze Pause, dann neue Instanz starten
-        setTimeout(() => { if (isRecording) startNewSession(); }, 150);
+        setTimeout(() => {
+          if (isRecording && myId === sessionId) startNewSession();
+        }, 200);
       }
     };
     recognition = r;
     try { r.start(); } catch(e) {}
   }
 
-  function updateDisplay(interim) {
-    interim = interim || '';
+  function updateDisplay() {
     const box = document.getElementById('transcriptBox');
-    const ph = document.getElementById('placeholder');
-    if (ph) ph.style.display = 'none';
-    box.textContent = transcript.trim() + (interim ? ' ' + interim : '');
-    document.getElementById('manualText').value = transcript.trim();
+    const t = transcript.trim();
+    box.textContent = t || '';
+    if (!t) {
+      box.innerHTML = '<span class="placeholder" id="placeholder">Hier erscheint die erkannte Sprache …</span>';
+    }
+    document.getElementById('manualText').value = t;
   }
 
   function toggleRecording() {
@@ -387,9 +389,7 @@
   }
 
   function startRecording() {
-    if (!SR) return;
     isRecording = true;
-    transcript = transcript; // behalten was schon da ist
     startNewSession();
     document.getElementById('micBtn').classList.add('recording');
     document.getElementById('micLabel').textContent = 'Aufnahme läuft – Tippen zum Stoppen';
@@ -398,21 +398,22 @@
 
   function stopRecording() {
     isRecording = false;
+    sessionId++; // alle laufenden Sessions ungültig machen
     if (recognition) { try { recognition.stop(); } catch(e){} recognition = null; }
-    updateDisplay();
     document.getElementById('micBtn').classList.remove('recording');
     document.getElementById('micLabel').textContent = 'Tippen zum Aufnehmen';
     document.getElementById('micLabel').classList.remove('recording');
   }
 
   function clearForm() {
+    // ERST stoppen, DANN zurücksetzen
+    if (isRecording) stopRecording();
     transcript = '';
     document.getElementById('manualText').value = '';
     document.getElementById('teacher').value = '';
-    const box = document.getElementById('transcriptBox');
-    box.innerHTML = '<span class="placeholder" id="placeholder">Hier erscheint die erkannte Sprache …</span>';
+    document.getElementById('transcriptBox').innerHTML =
+      '<span class="placeholder" id="placeholder">Hier erscheint die erkannte Sprache …</span>';
     setDefaultTime();
-    if(isRecording) stopRecording();
   }
 
   function setDefaultTime() {

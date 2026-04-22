@@ -1,4 +1,4 @@
-const CACHE = 'janno-v1';
+const CACHE = 'janno-v3';
 const ASSETS = [
   './',
   './index.html',
