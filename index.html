@@ -334,25 +334,48 @@
       document.getElementById('micBtn').onclick = null;
       return;
     }
-    recognition = new SR();
-    recognition.lang = 'de-DE';
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    recognition.onresult = (e) => {
-      let interim = '', final = '';
-      for (let i = e.resultIndex; i < e.results.length; i++) {
-        if (e.results[i].isFinal) final += e.results[i][0].transcript + ' ';
-        else interim += e.results[i][0].transcript;
-      }
-      transcript += final;
-      const box = document.getElementById('transcriptBox');
-      document.getElementById('placeholder').style.display = 'none';
-      box.textContent = '';
-      box.insertAdjacentHTML('beforeend', transcript + '<em style="color:var(--text3)">' + interim + '</em>');
-      document.getElementById('manualText').value = transcript.trim();
-    };
-    recognition.onerror = () => stopRecording();
-    recognition.onend = () => { if(isRecording) { try { recognition.start(); } catch(e){} } };
+    document.getElementById('speech-notice').textContent = 'Tippen Sie auf das Mikrofon und schildern Sie den Vorfall auf Deutsch.';
+
+    function createRecognition() {
+      const r = new SR();
+      r.lang = 'de-DE';
+      r.continuous = false;      // iOS Safari unterstützt continuous nicht zuverlässig
+      r.interimResults = false;  // Stabilere Ergebnisse auf iOS
+      r.onresult = (e) => {
+        for (let i = e.resultIndex; i < e.results.length; i++) {
+          if (e.results[i].isFinal) {
+            transcript += e.results[i][0].transcript + ' ';
+          }
+        }
+        updateDisplay();
+      };
+      r.onerror = (e) => {
+        if (e.error === 'not-allowed') {
+          stopRecording();
+          showToast('Mikrofon-Zugriff verweigert. Bitte in den Einstellungen erlauben.');
+        }
+      };
+      r.onend = () => {
+        // iOS stoppt nach jeder Pause – bei aktiver Aufnahme sofort neu starten
+        if (isRecording) {
+          try { recognition.start(); } catch(e) {}
+        }
+      };
+      return r;
+    }
+
+    recognition = createRecognition();
+  }
+
+  function updateDisplay() {
+    const box = document.getElementById('transcriptBox');
+    const ph = document.getElementById('placeholder');
+    const t = transcript.trim();
+    if (t) {
+      if (ph) ph.style.display = 'none';
+      box.textContent = t;
+    }
+    document.getElementById('manualText').value = t;
   }
 
   function toggleRecording() {
@@ -380,7 +403,8 @@
     transcript = '';
     document.getElementById('manualText').value = '';
     document.getElementById('teacher').value = '';
-    document.getElementById('transcriptBox').innerHTML = '<span class="placeholder" id="placeholder">Hier erscheint die erkannte Sprache …</span>';
+    const box = document.getElementById('transcriptBox');
+    box.innerHTML = '<span class="placeholder" id="placeholder">Hier erscheint die erkannte Sprache …</span>';
     setDefaultTime();
     if(isRecording) stopRecording();
   }
